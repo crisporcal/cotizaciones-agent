@@ -1,5 +1,10 @@
-from typing import Callable, Optional, Dict, Any
+from typing import Callable, Optional
 from pydantic import BaseModel, ValidationError
+import os
+import google.generativeai as genai
+
+# Configuración de Gemini
+genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
 
 class MCPRegistry:
     def __init__(self):
@@ -23,3 +28,25 @@ class MCPRegistry:
                 raise e
         else:
             return entry["func"](**kwargs)
+
+
+# Modelo de entrada para la herramienta LLM
+class LLMAnalysisInput(BaseModel):
+    moneda: str
+    compra: float
+    venta: float
+    source: str
+    contexto: str
+
+def analyze_with_llm(moneda: str, compra: float, venta: float, source: str, contexto: str) -> str:
+    prompt = f"""Eres un analista financiero.
+    Analiza la cotización de {moneda}.
+    Compra: {compra} | Venta: {venta}
+    Fuente: {source}
+    Contexto histórico:
+    {contexto}
+    Responde en español, breve y con fuentes.
+    """
+    model = genai.GenerativeModel("gemini-1.5-flash")
+    resp = model.generate_content(prompt)
+    return resp.text

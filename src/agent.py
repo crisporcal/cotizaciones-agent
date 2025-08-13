@@ -6,6 +6,7 @@ from typing import Optional, TypedDict, Any
 from .rag.vectorstore import SimpleVectorStore
 from .tools.cotizaciones_tool import get_cotizacion
 from langgraph.graph import StateGraph, END
+from .mcp import MCPRegistry
 
 # Configuración de la API Key de Google
 genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
@@ -156,7 +157,7 @@ def rag_lookup(state: AgentState, vectorstore: Optional[SimpleVectorStore] = Non
     state["rag_docs"] = docs
     return state
 
-def analizar_con_llm(state: AgentState) -> AgentState:
+def analizar_con_llm(state: AgentState, mcp: MCPRegistry) -> AgentState:
     hoy = datetime.date.today()
     hoy_str = hoy.strftime("%Y-%m-%d")
     fecha_pedida_str = state.get("fecha")
@@ -216,24 +217,20 @@ def analizar_con_llm(state: AgentState) -> AgentState:
             return state
 
     # 🟢 Todo lo demás → usar LLM
-    context = "\n\n".join([d['doc']['text'] for d in rag_docs])
-    prompt = f"""Eres un analista financiero.
-    Analiza la cotización de {datos.get("moneda")}.
-    Compra: {datos.get("compra")} | Venta: {datos.get("venta")}
-    Fuente: {datos.get("source")}
-    Contexto histórico de datos que se tienen de fechas pasadas:
-    {context}
-    Y {datos} son los datos actuales a dia de hoy obtenidos por scraping de la pagina
-    de Cambios Chaco
-    Responde en español, breve y con fuentes."""
-
-    model = genai.GenerativeModel("gemini-1.5-flash")
-    resp = model.generate_content(prompt)
-    state['reporte'] = resp.text
+    contexto = "\n".join([d["doc"]["text"] for d in rag_docs])
+    llm_result = mcp.call(
+        "llm.analyze",
+        moneda=datos.get("moneda", ""),
+        compra=datos.get("compra", 0),
+        venta=datos.get("venta", 0),
+        source=datos.get("source", ""),
+        contexto=contexto
+    )
+    state["reporte"] = llm_result
     return state
 
 # --- Constructor ---
-def build_currency_agent_graph(question: str, vectorstore: Optional[SimpleVectorStore] = None):
+def build_currency_agent_graph(question: str, vectorstore: Optional[SimpleVectorStore] = None, mcp: Optional[MCPRegistry] = None):
     moneda = detectar_moneda(question)
     fecha = detectar_fecha(question)
 
@@ -241,7 +238,7 @@ def build_currency_agent_graph(question: str, vectorstore: Optional[SimpleVector
     workflow.add_node("fetch", fetch_cotizaciones)
     workflow.add_node("process", procesar_datos)
     workflow.add_node("rag", lambda s: rag_lookup(s, vectorstore))
-    workflow.add_node("analyze", analizar_con_llm)
+    workflow.add_node("analyze", lambda s: analizar_con_llm(s, mcp))
 
     workflow.set_entry_point("fetch")
     workflow.add_edge("fetch", "process")
