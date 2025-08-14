@@ -40,16 +40,16 @@ class LLMAnalysisInput(BaseModel):
     question: str
 
 def analyze_with_llm(moneda: str, compra: float, venta: float, source: str, contexto: str, question: str) -> str:
-    prompt = f"""Eres un analista financiero. y la pregunta que te realizan es {question}
-    Si te hacen una pregunta que no tiene relevancia con la cotizacion de monedas, ignora la pregunta y responde muy amablemente
-    diciendole que estas disponible si necesita ayuda con otra pregunta.
-    en caso contrario, analiza la cotización de {moneda}.
+    prompt = f"""Eres un analista financiero. La pregunta que te realizan es: {question}
+    Si la pregunta no tiene relevancia con la cotización de monedas ni con el análisis financiero, responde de forma amable, disculpándote y diciendo que estás disponible para ayudar con cualquier otra pregunta relacionada con las divisas.
+    Si la pregunta está relacionada con la cotización de monedas, analiza la cotización de {moneda}.
     Compra: {compra} | Venta: {venta}
-    Fuente: {source}, donde la Fuente {source} es la obtenida por scraping actualmente de la pagina cambios Chaco
+    Fuente: {source}, donde la fuente {source} es la obtenida por scraping de la página Cambios Chaco.
     Contexto histórico:
-    {contexto} es la base de datos del banco central del paraguay que se tiene almacenado.
-    Responde en español, breve y con fuentes.
+    {contexto} es la base de datos del Banco Central del Paraguay que se tiene almacenado.
+    Responde en español, de manera breve, y solo proporciona información sobre la cotización si es relevante para la pregunta. Si la pregunta no está relacionada, no hagas mención de las cotizaciones.
     """
+    # Llamada a Gemini para generar el análisis
     model = genai.GenerativeModel("gemini-1.5-flash")
     resp = model.generate_content(prompt)
     return resp.text
