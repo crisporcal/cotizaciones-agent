@@ -37,14 +37,17 @@ class LLMAnalysisInput(BaseModel):
     venta: float
     source: str
     contexto: str
+    question: str
 
-def analyze_with_llm(moneda: str, compra: float, venta: float, source: str, contexto: str) -> str:
-    prompt = f"""Eres un analista financiero.
-    Analiza la cotización de {moneda}.
+def analyze_with_llm(moneda: str, compra: float, venta: float, source: str, contexto: str, question: str) -> str:
+    prompt = f"""Eres un analista financiero. y la pregunta que te realizan es {question}
+    Si te hacen una pregunta que no tiene relevancia con la cotizacion de monedas, ignora la pregunta y responde muy amablemente
+    diciendole que estas disponible si necesita ayuda con otra pregunta.
+    en caso contrario, analiza la cotización de {moneda}.
     Compra: {compra} | Venta: {venta}
-    Fuente: {source}
+    Fuente: {source}, donde la Fuente {source} es la obtenida por scraping actualmente de la pagina cambios Chaco
     Contexto histórico:
-    {contexto}
+    {contexto} es la base de datos del banco central del paraguay que se tiene almacenado.
     Responde en español, breve y con fuentes.
     """
     model = genai.GenerativeModel("gemini-1.5-flash")

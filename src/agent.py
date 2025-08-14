@@ -157,7 +157,7 @@ def rag_lookup(state: AgentState, vectorstore: Optional[SimpleVectorStore] = Non
     state["rag_docs"] = docs
     return state
 
-def analizar_con_llm(state: AgentState, mcp: MCPRegistry) -> AgentState:
+def analizar_con_llm(state: AgentState, mcp: MCPRegistry, question: str) -> AgentState:
     hoy = datetime.date.today()
     hoy_str = hoy.strftime("%Y-%m-%d")
     fecha_pedida_str = state.get("fecha")
@@ -224,7 +224,8 @@ def analizar_con_llm(state: AgentState, mcp: MCPRegistry) -> AgentState:
         compra=datos.get("compra", 0),
         venta=datos.get("venta", 0),
         source=datos.get("source", ""),
-        contexto=contexto
+        contexto=contexto,
+        question=question
     )
     state["reporte"] = llm_result
     return state
@@ -238,7 +239,7 @@ def build_currency_agent_graph(question: str, vectorstore: Optional[SimpleVector
     workflow.add_node("fetch", fetch_cotizaciones)
     workflow.add_node("process", procesar_datos)
     workflow.add_node("rag", lambda s: rag_lookup(s, vectorstore))
-    workflow.add_node("analyze", lambda s: analizar_con_llm(s, mcp))
+    workflow.add_node("analyze", lambda s: analizar_con_llm(s, mcp, question))
 
     workflow.set_entry_point("fetch")
     workflow.add_edge("fetch", "process")
